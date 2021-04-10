@@ -189,11 +189,30 @@ class GTF:
 
 ##################################################
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    # for gene in GTF.reconstruct_full_gtf(sys.argv[1]):
-    #     print(gene.format_to_gtf())
+    description = """
+    stats provide some basic statistics about your file (number of exons, tx, genes).\n
+    reconstruction reconstruct your exons at gene and transcript levels.
+    """
+    parser = argparse.ArgumentParser(description="Utility tools for your GTF files.")
+    parser.add_argument(
+        "mode",
+        choices=["stats", "format"],
+        type=str,
+        help="Basic stats about your file | Format a gtf to with exon lines to gene and transcript levels",
+    )
+    parser.add_argument(
+        "gtf",
+        type=str,
+        help="Path to your gtf file",
+    )
 
-    print(GTF.stats(sys.argv[1]))
-    # for gene in GTF.parse(sys.argv[1]):
-    #     print(gene.format_to_gtf())
+    args = parser.parse_args()
+
+    if args.mode == "format":
+        for gene in GTF.reconstruct_full_gtf(args.gtf):
+            print(gene.format_to_gtf())
+
+    elif args.mode == "stats":
+        print(GTF.stats(args.gtf))
