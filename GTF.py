@@ -100,7 +100,7 @@ class GTF:
                         continue
 
                     attributes_check = True
-                    for attribute, value in attributes.items():
+                    for attribute, value in record.attributes.items():
                         if attribute not in record or record[attribute] != value:
                             attributes_check = False
                             break
@@ -129,18 +129,28 @@ class GTF:
                 yield gene
 
 
-    def reconstruct_full_gtf(file):
+    def reconstruct_full_gtf():
         pass
+
+    def stats(file):
+        exons = 0
+        transcripts =set()
+        genes = set()
+        for record in GTF.parse(file, feature="exon", by_line=True):
+            if record.feature == "exon":
+                exons += 1
+                genes.add(record["gene_id"])
+                transcripts.add(record["transcript_id"])
+
+        return(exons, len(transcripts), len(genes))
+
 
 
 
 
 if __name__ == "__main__":
     import sys
-    for gene in GTF.parse(
-        sys.argv[1],
-        attributes={"gene_id": "XLOC_000003", "transcript_id": "TCONS_00000004"},
-    ):
-        # print(len(gene.transcripts))
-        print(gene.format_to_gtf())
+    # print(GTF.stats(sys.argv[1]))
 
+    # for gene in GTF.parse(sys.argv[1]):
+    #     print(gene.format_to_gtf())
