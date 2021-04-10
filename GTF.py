@@ -1,4 +1,7 @@
 #! /usr/bin/python3
+import os
+
+
 class GTFRecord:
     def __init__(self, line):
         line = line.rstrip().split("\t")
@@ -50,6 +53,7 @@ class GTFRecord:
             if x != ""
         )
 
+
 class GTFRecordWithChildren(GTFRecord):
     def __init__(self, line):
         super().__init__(line)
@@ -68,7 +72,6 @@ class GTFRecordWithChildren(GTFRecord):
         return gtf_seq.rstrip()
 
 
-
 class Gene(GTFRecordWithChildren):
     @property
     def transcripts(self):
@@ -78,10 +81,12 @@ class Gene(GTFRecordWithChildren):
     def exons(self):
         return [exon for transcript in self.transcripts for exon in transcript.exons]
 
+
 class Transcript(GTFRecordWithChildren):
     @property
     def exons(self):
         return self.children
+
 
 class GTF:
     @staticmethod
@@ -114,7 +119,7 @@ class GTF:
                 for line in fd:
                     if line.startswith("#"):
                         continue
-                    
+
                     record = GTFRecord(line)
                     if record.feature == "gene" and gene is not None:
                         yield gene
@@ -125,32 +130,31 @@ class GTF:
                         gene.add_child(transcript)
                     else:
                         transcript.add_child(record)
-                        
+
                 yield gene
 
-
+    @staticmethod
     def reconstruct_full_gtf():
         pass
 
+    @staticmethod
     def stats(file):
         exons = 0
-        transcripts =set()
+        transcripts = set()
         genes = set()
-        for record in GTF.parse(file, feature="exon", by_line=True):
-            if record.feature == "exon":
-                exons += 1
-                genes.add(record["gene_id"])
-                transcripts.add(record["transcript_id"])
+        for exon in GTF.parse(file, feature="exon", by_line=True):
+            exons += 1
+            genes.add(exon["gene_id"])
+            transcripts.add(exon["transcript_id"])
 
-        return(exons, len(transcripts), len(genes))
-
+        return f"FILE: {os.path.abspath(file)}\n# genes:\t{len(genes)}\n# transcripts:\t{len(transcripts)}\n# exons:\t{exons}"
 
 
-
-
+##################################################
 if __name__ == "__main__":
     import sys
-    # print(GTF.stats(sys.argv[1]))
+
+    print(GTF.stats(sys.argv[1]))
 
     # for gene in GTF.parse(sys.argv[1]):
     #     print(gene.format_to_gtf())
