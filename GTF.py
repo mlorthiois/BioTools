@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#!/usr/bin/env python3
 import os
 
 
@@ -191,10 +191,6 @@ class GTF:
 if __name__ == "__main__":
     import argparse
 
-    description = """
-    stats provide some basic statistics about your file (number of exons, tx, genes).\n
-    reconstruction reconstruct your exons at gene and transcript levels.
-    """
     parser = argparse.ArgumentParser(description="Utility tools for your GTF files.")
     parser.add_argument(
         "mode",
