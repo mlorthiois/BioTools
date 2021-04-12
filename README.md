@@ -2,7 +2,7 @@
 
 ## GTF.py
 
-Provide a class that allow you to parse GTF files, reconstruct GTF consisting of exons only, or calculate some basic statistics.
+Provide a class that allow you to parse [GTF files](https://www.ensembl.org/info/website/upload/gff.html), reconstruct GTF consisting of exons only, or calculate some basic statistics.
 
 ### Usage
 
@@ -54,10 +54,10 @@ for record in GTF.parse({your GTF file}, feature="transcript", attribute={"trans
 GTFRecord object provided by the iterator is an object with attributes (seqname, source, feature, start, end, score, strand, frame).
 GTFRecord also provide a special `attribute` feature which is a dic with key, value from the last column of your GTF file.
 
-1. len(GTFRecord) return the length of your record
-2. str(GTFRecord) of print(GTFRecord) return the GTFRecord formatted as in a GTF file
-3. attribute in GTFRecord return True if the attribute is in GTFRecord
-4. GTFRecord[attribute] return the value of this attribute. Example: `GTFRecord["gene_biotype"] == "lncRNA"`
+1. `len(GTFRecord)` return the length of your record
+2. `str(GTFRecord)` or `print(GTFRecord)` return the GTFRecord formatted as in a GTF file
+3. `attribute in GTFRecord` return `True` if the attribute is in GTFRecord
+4. `GTFRecord[attribute]` return the value of this attribute. Example: `GTFRecord["gene_biotype"] == "lncRNA"`
 
 If your GTFRecord is a Gene object (in GTF.parse(by_line=False)):
 1. `gene.transcripts` return a list of all the transcripts
@@ -67,5 +67,5 @@ If your GTFRecord is a Transcript object:
 1. `transcript.exons` return a list of all the exons
 
 
-# ToDo:
+# To Do:
 1. Merge GTF
