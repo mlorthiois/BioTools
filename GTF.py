@@ -41,6 +41,9 @@ class GTFRecord:
     def __getitem__(self, item):
         return self.attributes[item]
 
+    def __setitem__(self, key, value):
+        self.attributes[key] = value
+
     def _parse_attributes_as_dict(self, att):
         self.attributes = dict(
             x.split("|")
