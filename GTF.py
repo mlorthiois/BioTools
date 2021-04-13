@@ -58,6 +58,16 @@ class GTFRecord:
             if x != ""
         )
 
+    def remove_attributes(self, attributes):
+        for attribute in list(self.attributes.keys()):
+            if attribute in attributes:
+                del self.attributes[attribute]
+
+    def filter_attributes(self, attributes):
+        for attribute in list(self.attributes.keys()):
+            if attribute not in attributes:
+                del self.attributes[attribute]
+
 
 class GTFRecordWithChildren(GTFRecord):
     def __init__(self, line):
@@ -87,9 +97,10 @@ class Gene(GTFRecordWithChildren):
         super().__init__(line)
         self.feature = "gene"
         if check_attributes:
-            for attribute in list(self.attributes):
-                if "transcript" in attribute or "exon" in attribute:
-                    del self.attributes[attribute]
+            to_filter = [
+                att for att in self.attributes if ("exon" in att or "transcript" in att)
+            ]
+            self.remove_attributes(to_filter)
 
     @property
     def transcripts(self):
@@ -105,9 +116,8 @@ class Transcript(GTFRecordWithChildren):
         super().__init__(line)
         self.feature = "transcript"
         if check_attributes:
-            for attribute in list(self.attributes):
-                if "exon" in attribute:
-                    del self.attributes[attribute]
+            to_filter = [att for att in self.attributes if "exon" in att]
+            self.remove_attributes(to_filter)
 
     @property
     def exons(self):
