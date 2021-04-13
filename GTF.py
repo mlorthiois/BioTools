@@ -3,7 +3,8 @@
 
 class GTFRecord:
     def __init__(self, line):
-        line_splitted = line.rstrip().split("\t")
+        # Remove comment
+        line_splitted = line.split("#")[0].rstrip().split("\t")
         if len(line_splitted) != 9:
             sys.exit(f"{line}\nUnable to parse this line, maybe badly formatted")
         self.seqname = line_splitted[0]
