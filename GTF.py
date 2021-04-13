@@ -3,16 +3,18 @@
 
 class GTFRecord:
     def __init__(self, line):
-        line = line.rstrip().split("\t")
-        self.seqname = line[0]
-        self.source = line[1]
-        self.feature = line[2]
-        self.start = int(line[3])
-        self.end = int(line[4])
-        self.score = line[5]
-        self.strand = line[6]
-        self.frame = line[7]
-        self._parse_attributes_as_dict(line[8])
+        line_splitted = line.rstrip().split("\t")
+        if len(line_splitted) != 9:
+            sys.exit(f"{line}\nUnable to parse this line, maybe badly formatted")
+        self.seqname = line_splitted[0]
+        self.source = line_splitted[1]
+        self.feature = line_splitted[2]
+        self.start = int(line_splitted[3])
+        self.end = int(line_splitted[4])
+        self.score = line_splitted[5]
+        self.strand = line_splitted[6]
+        self.frame = line_splitted[7]
+        self._parse_attributes_as_dict(line_splitted[8])
 
     def __contains__(self, attribute):
         return attribute in self.attributes
@@ -93,6 +95,8 @@ class Transcript(GTFRecordWithChildren):
 class GTF:
     @staticmethod
     def parse(fd, feature=None, strand=None, attributes=None, by_line=False):
+        if fd.readline() == "":
+            sys.exit("There is nothing to parse...")
         # Pass attributes as {"gene_id":"ENSG001", "transcript_biotype":"lncRNA"}
         if by_line:
             for line in fd:
@@ -209,6 +213,13 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if args.input_file is None:
+        print(
+            "\033[91mPlease specify your GTF file or use stdin... See below for usage:\n\x1b[0m"
+        )
+
+        sys.exit(parser.print_help())
 
     if args.mode == "format":
         for gene in GTF.reconstruct_full_gtf(args.input_file):
