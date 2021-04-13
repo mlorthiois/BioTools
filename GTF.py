@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os
 
 
 class GTFRecord:
@@ -90,48 +89,47 @@ class Transcript(GTFRecordWithChildren):
 
 class GTF:
     @staticmethod
-    def parse(file, feature=None, strand=None, attributes=None, by_line=False):
+    def parse(fd, feature=None, strand=None, attributes=None, by_line=False):
         # Pass attributes as {"gene_id":"ENSG001", "transcript_biotype":"lncRNA"}
-        with open(file) as fd:
-            if by_line:
-                for line in fd:
-                    if line.startswith("#"):
-                        continue
-                    record = GTFRecord(line)
-                    if (feature is not None) and (record.feature != feature):
-                        continue
+        if by_line:
+            for line in fd:
+                if line.startswith("#"):
+                    continue
+                record = GTFRecord(line)
+                if (feature is not None) and (record.feature != feature):
+                    continue
 
-                    if strand is not None and record.strand != strand:
-                        continue
+                if strand is not None and record.strand != strand:
+                    continue
 
-                    attributes_check = True
-                    for attribute, value in record.attributes.items():
-                        if attribute not in record or record[attribute] != value:
-                            attributes_check = False
-                            break
+                attributes_check = True
+                for attribute, value in record.attributes.items():
+                    if attribute not in record or record[attribute] != value:
+                        attributes_check = False
+                        break
 
-                    if attributes_check:
-                        yield record
-                    else:
-                        continue
-            else:
-                gene = None
-                for line in fd:
-                    if line.startswith("#"):
-                        continue
+                if attributes_check:
+                    yield record
+                else:
+                    continue
+        else:
+            gene = None
+            for line in fd:
+                if line.startswith("#"):
+                    continue
 
-                    record = GTFRecord(line)
-                    if record.feature == "gene" and gene is not None:
-                        yield gene
-                    if record.feature == "gene":
-                        gene = Gene(line)
-                    elif record.feature == "transcript":
-                        transcript = Transcript(line)
-                        gene.add_child(transcript)
-                    else:
-                        transcript.add_child(record)
+                record = GTFRecord(line)
+                if record.feature == "gene" and gene is not None:
+                    yield gene
+                if record.feature == "gene":
+                    gene = Gene(line)
+                elif record.feature == "transcript":
+                    transcript = Transcript(line)
+                    gene.add_child(transcript)
+                else:
+                    transcript.add_child(record)
 
-                yield gene
+            yield gene
 
     @staticmethod
     def reconstruct_full_gtf(file):
@@ -183,13 +181,14 @@ class GTF:
             exons += 1
             genes.add(exon["gene_id"])
             transcripts.add(exon["transcript_id"])
-
-        return f"FILE: {os.path.abspath(file)}\n# genes:\t{len(genes)}\n# transcripts:\t{len(transcripts)}\n# exons:\t{exons}"
+        return len(genes), len(transcripts), exons
 
 
 ##################################################
 if __name__ == "__main__":
+    import sys
     import argparse
+    import os
 
     parser = argparse.ArgumentParser(description="Utility tools for your GTF files.")
     parser.add_argument(
@@ -199,16 +198,21 @@ if __name__ == "__main__":
         help="Basic stats about your file | Format a gtf to with exon lines to gene and transcript levels",
     )
     parser.add_argument(
-        "gtf",
-        type=str,
-        help="Path to your gtf file",
+        "-i",
+        "--input-file",
+        help="Path to your GTF file. Use stdin by default",
+        type=argparse.FileType("r"),
+        default=(None if sys.stdin.isatty() else sys.stdin),
     )
 
     args = parser.parse_args()
 
     if args.mode == "format":
-        for gene in GTF.reconstruct_full_gtf(args.gtf):
+        for gene in GTF.reconstruct_full_gtf(args.input_file):
             print(gene.format_to_gtf())
 
     elif args.mode == "stats":
-        print(GTF.stats(args.gtf))
+        genes, transcripts, exons = GTF.stats(args.input_file)
+        if args.input_file.name != "<stdin>":
+            print(f"FILE: {os.path.abspath(args.input_file.name)}")
+        print(f"# genes:\t{genes}\n# transcripts:\t{transcripts}\n# exons:\t{exons}")
