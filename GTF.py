@@ -85,6 +85,7 @@ class GTFRecordWithChildren(GTFRecord):
 class Gene(GTFRecordWithChildren):
     def __init__(self, line, check_attributes=False):
         super().__init__(line)
+        self.feature = "gene"
         if check_attributes:
             for attribute in list(self.attributes):
                 if "transcript" in attribute or "exon" in attribute:
@@ -102,6 +103,7 @@ class Gene(GTFRecordWithChildren):
 class Transcript(GTFRecordWithChildren):
     def __init__(self, line, check_attributes=False):
         super().__init__(line)
+        self.feature = "transcript"
         if check_attributes:
             for attribute in list(self.attributes):
                 if "exon" in attribute:
@@ -164,12 +166,10 @@ class GTF:
         for record in GTF.parse(file, by_line=True):
             if record["gene_id"] not in genes:
                 gene = Gene(str(record), check_attributes=True)
-                gene.feature = "gene"
                 genes[record["gene_id"]] = gene
 
             if record["transcript_id"] not in transcripts:
                 transcript = Transcript(str(record), check_attributes=True)
-                transcript.feature = "transcript"
                 transcripts[record["transcript_id"]] = transcript
 
             transcripts[record["transcript_id"]].add_child(record, check_position=True)
