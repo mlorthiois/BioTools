@@ -83,6 +83,13 @@ class GTFRecordWithChildren(GTFRecord):
 
 
 class Gene(GTFRecordWithChildren):
+    def __init__(self, line, check_attributes=False):
+        super().__init__(line)
+        if check_attributes:
+            for attribute in list(self.attributes):
+                if "transcript" in attribute or "exon" in attribute:
+                    del self.attributes[attribute]
+
     @property
     def transcripts(self):
         return self.children
@@ -93,6 +100,13 @@ class Gene(GTFRecordWithChildren):
 
 
 class Transcript(GTFRecordWithChildren):
+    def __init__(self, line, check_attributes=False):
+        super().__init__(line)
+        if check_attributes:
+            for attribute in list(self.attributes):
+                if "exon" in attribute:
+                    del self.attributes[attribute]
+
     @property
     def exons(self):
         return self.children
@@ -101,9 +115,6 @@ class Transcript(GTFRecordWithChildren):
 class GTF:
     @staticmethod
     def parse(fd, feature=None, strand=None, attributes=None, by_line=False):
-        if fd.readline() == "":
-            sys.exit("There is nothing to parse...")
-        # Pass attributes as {"gene_id":"ENSG001", "transcript_biotype":"lncRNA"}
         if by_line:
             for line in fd:
                 if line.startswith("#"):
@@ -146,44 +157,28 @@ class GTF:
 
     @staticmethod
     def reconstruct_full_gtf(file):
-        gene = None
-        transcript = None
+        genes = {}
+        transcripts = {}
+
+        # Have to do 2 loops if exons not sorted
         for record in GTF.parse(file, by_line=True):
-            if gene is None or record["gene_id"] != gene["gene_id"]:
-                if gene is not None:
-                    gene.add_child(transcript)
-                    yield gene
-                gene = Gene(str(record))
+            if record["gene_id"] not in genes:
+                gene = Gene(str(record), check_attributes=True)
                 gene.feature = "gene"
-                for attribute in list(gene.attributes.keys()):
-                    if "exon" in attribute or "transcript" in attribute:
-                        del gene.attributes[attribute]
+                genes[record["gene_id"]] = gene
 
-            if (
-                transcript is None
-                or record["transcript_id"] != transcript["transcript_id"]
-            ):
-                if transcript is not None and gene["gene_id"] == transcript["gene_id"]:
-                    gene.add_child(transcript)
-                transcript = Transcript(str(record))
+            if record["transcript_id"] not in transcripts:
+                transcript = Transcript(str(record), check_attributes=True)
                 transcript.feature = "transcript"
-                for attribute in list(transcript.attributes.keys()):
-                    if "exon" in attribute:
-                        del transcript.attributes[attribute]
+                transcripts[record["transcript_id"]] = transcript
 
-            if record.start < gene.start:
-                gene.start = record.start
-            if record.start < transcript.start:
-                transcript.start = record.start
+            transcripts[record["transcript_id"]].add_child(record, check_position=True)
 
-            if record.end > gene.end:
-                gene.end = record.end
-            if record.end > transcript.end:
-                transcript.end = record.end
+        for transcript in transcripts.values():
+            genes[transcript["gene_id"]].add_child(transcript, check_position=True)
 
-            transcript.add_child(record)
-        gene.add_child(transcript)
-        yield gene
+        for gene in genes.values():
+            yield gene
 
     @staticmethod
     def stats(file):
