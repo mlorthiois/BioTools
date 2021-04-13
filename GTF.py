@@ -64,7 +64,12 @@ class GTFRecordWithChildren(GTFRecord):
         super().__init__(line)
         self.children = []
 
-    def add_child(self, child):
+    def add_child(self, child, check_position=False):
+        if check_position:
+            if child.start > self.start:
+                self.start = child.start
+            if child.end < self.end:
+                self.end = child.end
         self.children.append(child)
 
     def format_to_gtf(self):
@@ -80,7 +85,7 @@ class GTFRecordWithChildren(GTFRecord):
 class Gene(GTFRecordWithChildren):
     @property
     def transcripts(self):
-        return [transcript for transcript in self.children]
+        return self.children
 
     @property
     def exons(self):
