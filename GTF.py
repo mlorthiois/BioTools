@@ -66,9 +66,9 @@ class GTFRecordWithChildren(GTFRecord):
 
     def add_child(self, child, check_position=False):
         if check_position:
-            if child.start > self.start:
+            if child.start < self.start:
                 self.start = child.start
-            if child.end < self.end:
+            if child.end > self.end:
                 self.end = child.end
         self.children.append(child)
 
