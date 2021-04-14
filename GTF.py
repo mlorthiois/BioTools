@@ -7,15 +7,17 @@ class GTFRecord:
         line_splitted = line.split("#")[0].rstrip().split("\t")
         if len(line_splitted) != 9:
             sys.exit(f"{line}\nUnable to parse this line, maybe badly formatted")
-        self.seqname = line_splitted[0]
-        self.source = line_splitted[1]
-        self.feature = line_splitted[2]
-        self.start = int(line_splitted[3])
-        self.end = int(line_splitted[4])
-        self.score = line_splitted[5]
-        self.strand = line_splitted[6]
-        self.frame = line_splitted[7]
-        self._parse_attributes_as_dict(line_splitted[8])
+        (
+            self.seqname,
+            self.source,
+            self.feature,
+            self.start,
+            self.end,
+            self.score,
+            self.strand,
+            self.frame,
+        ) = line_splitted[:-1]
+        self._parse_attributes_as_dict(line_splitted[-1])
 
     def __contains__(self, attribute):
         return attribute in self.attributes
@@ -58,12 +60,25 @@ class GTFRecord:
             if x != ""
         )
 
+    def _check_conditions(self, feature, strand=None, attributes=None):
+        if (feature is not None) and (self.feature != feature):
+            return False
+        if strand is not None and self.strand != strand:
+            return False
+        if attributes is not None:
+            for attribute, value in attributes.items():
+                if attribute not in self or self[attribute] != value:
+                    return False
+        return True
+
     def remove_attributes(self, attributes):
+        """Remove attributes passed in arg (as list)"""
         for attribute in list(self.attributes.keys()):
             if attribute in attributes:
                 del self.attributes[attribute]
 
     def filter_attributes(self, attributes):
+        """Only keep attributes passed as arg (list)"""
         for attribute in list(self.attributes.keys()):
             if attribute not in attributes:
                 del self.attributes[attribute]
@@ -132,19 +147,7 @@ class GTF:
                 if line.startswith("#"):
                     continue
                 record = GTFRecord(line)
-                if (feature is not None) and (record.feature != feature):
-                    continue
-
-                if strand is not None and record.strand != strand:
-                    continue
-
-                attributes_check = True
-                for attribute, value in record.attributes.items():
-                    if attribute not in record or record[attribute] != value:
-                        attributes_check = False
-                        break
-
-                if attributes_check:
+                if record._check_conditions(feature, strand, attributes):
                     yield record
                 else:
                     continue
@@ -155,7 +158,13 @@ class GTF:
                     continue
 
                 record = GTFRecord(line)
-                if record.feature == "gene" and gene is not None:
+                if (
+                    record.feature == "gene"
+                    and gene is not None
+                    and gene._check_conditions(
+                        feature=feature, strand=strand, attributes=attributes
+                    )
+                ):
                     yield gene
                 if record.feature == "gene":
                     gene = Gene(line)
@@ -165,7 +174,10 @@ class GTF:
                 else:
                     transcript.add_child(record)
 
-            yield gene
+            if gene._check_conditions(
+                feature=feature, strand=strand, attributes=attributes
+            ):
+                yield gene
 
     @staticmethod
     def reconstruct_full_gtf(file):
