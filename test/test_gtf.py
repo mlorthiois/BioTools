@@ -21,6 +21,48 @@ class TestGtfRecord():
         assert record.attributes["transcript_id"] == "TCONS_00000026"
         assert record.attributes["exon_number"] == "1"
         assert record.attributes["gene_name"] == "CTDP1"
+
+    # Test contains
+    def test_all_specific_method(self):
+        record = GTFRecord(self.line)
+        # __contains__
+        assert ("gene_id" in record) == True
+
+        # __str__
+        assert (str(record)) == self.line
+
+        # __len__
+        assert len(record) == 75
+
+        # __setitem__
+        record["gene_id"] = "new_gene_id"
+        assert record["gene_id"] == "new_gene_id"
+
+        # __delitem__
+        del record["gene_name"]
+        assert ("gene_name" not in record) == True
+
+    # RecordWithChildren
+#     def test_format_to_gtf(self):
+#         with open("test/short.CanFam3.gtf") as fd:
+#             gtf = GTF.parse(fd)
+#         with open("test/short.CanFam3.gtf") as fd:
+#             file_lines = [line for line in fd]
+#         real = "".join(file_lines[5:13]).rstrip()
+#         print(real)
+#         print("---------------------------")
+#         new = [gene for gene in gtf.values()][0].format_to_gtf() 
+#         print(new)
+# 
+#         assert [gene for gene in gtf.values()][0].format_to_gtf().rstrip() == "".join(file_lines[5:13])
+    def test_GeneClass(self):
+        with open("test/short.CanFam3.gtf") as fd:
+            gtf = GTF.parse(fd)
+
+        gene = [gene for gene in gtf.values()][0]
+        assert len(gene.transcripts) == 2
+        assert len(gene.exons) == 5
+    
     
     def test_remove_attributes(self):
         record = GTFRecord(self.line)
