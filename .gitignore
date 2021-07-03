@@ -1,3 +1,3 @@
-*.gtf
 .vscode
 __pycache__
+/*.gtf
