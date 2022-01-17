@@ -6,30 +6,34 @@ Provide a class that allow you to parse
 [GTF files](https://www.ensembl.org/info/website/upload/gff.html), reconstruct
 GTF consisting of exons only, or calculate some basic statistics.
 
-### Usage
+## Usage
 
-#### From CLI
+### From CLI
 
 To reconstruct a full GTF (with 3 levels : Gene, Transcript, Exons) from exon
 only, use the command below (output to STDOUT)
 
 ```sh
-GTF.py format {gtf_path}
+# In file
+GTF.py format -i {gtf_path} > formatted.gtf
+
+# From stdin
+cat {gtf_path} | GTF.py format > formatted.gtf
 ```
 
 To compute the number of genes, transcripts and exons in your GTF (GTF with
 exons only included), use :
 
 ```sh
-GTF.py stats {gtf_path}
+GTF.py stats -i {gtf_path}
 ```
 
-#### From Python script
+### From Python script
 
 First, import the GTF class. This class provide a static method to parse your
 file It can be use in 2 cases:
 
-1. Your GTF is composed of 3 levels annotation. In that case, use:
+* Your GTF is composed of 3 levels annotation. In that case, use:
 
 ```py
 from GTF import GTF
@@ -39,27 +43,27 @@ with open("file.gtf") as fd:
     # gene is a Gene object
 ```
 
-2. Your GTF is composed of exons only. In that case, add the arg `by_line=True`
+* If you want to read your gtf line by line without relation between levels, use:
    which will parse your GTF line by line.
 
 ```py
 from GTF import GTF
 
 with open("file.gtf") as fd:
-  for record in GTF.parse(fd, by_line=True):
+  for record in GTF.parse_by_line(fd):
     # record is GTFRecord object
 ```
 
-The parse method can also take a feature and/or attributes of your choice, and
-return only the records that match your filters.
+The parse method can also take a feature parameters, and
+return only the records that match your filter.
 
 ```py
 with open("file.gtf") as fd:
-  for record in GTF.parse(fd, feature="transcript", attribute={"transcript_biotype" : "lncRNA"}):
-      # return a GTFRecord object with record.feature == "transcript" and record["transcript_biotype"] == "lncRNA"
+  for record in GTF.parse_by_line(fd, feature="transcript"):
+      # return a GTFRecord object with record.feature == "transcript"
 ```
 
-##### GTFRecord
+### GTFRecord
 
 GTFRecord object provided by the iterator is an object with attributes (seqname,
 source, feature, start, end, score, strand, frame). GTFRecord also provide a
@@ -82,6 +86,8 @@ The Transcript class provide everything from GTFRecord with:
 
 1. `transcript.exons` return a list of all the exons
 
-# To Do:
 
-1. Merge GTF
+# More informations
+
+This package has unit tests (88% coverage), has been successfully tested on Ensembl and RefSeq annotations,
+and used in production in the [ANNEXA](https://github.com/mlorthiois/annexa) pipeline.

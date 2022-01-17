@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+from typing import Dict, Generator, Tuple, List
+import re
+
+motif = r"(\w+) \"([^\"]*)\";"  # key "value";
+regex = re.compile(motif)  # extract 1 key/value
+regex_2 = re.compile(fr"({motif} )+{motif}$")
 
 
 class GTFRecord:
@@ -21,7 +27,7 @@ class GTFRecord:
         self.end = int(self.end)
         self._parse_attributes_as_dict(line_splitted[-1])
 
-    def __contains__(self, attribute):
+    def __contains__(self, attribute: str):
         return attribute in self.attributes
 
     def __str__(self):
@@ -37,9 +43,7 @@ class GTFRecord:
                 self.frame,
             ]
         )
-        end = " ".join(
-            [f'{attribute} "{value}";' for attribute, value in self.attributes.items()]
-        )
+        end = " ".join([f'{attribute} "{value}";' for attribute, value in self.attributes.items()])
         return begin + "\t" + end
 
     def __len__(self):
@@ -55,10 +59,10 @@ class GTFRecord:
         del self.attributes[key]
 
     def _parse_attributes_as_dict(self, att):
-        self.attributes = dict(
-            i.split("»")
-            for i in att[:-2].replace('"; ', "|").replace(' "', "»").split("|")
-        )
+        if regex_2.match(att):
+            self.attributes = dict(regex.findall(att))
+        else:
+            raise Exception(f"Unable to parse attributes: {att}")
 
     def remove_attributes(self, attributes):
         """Remove attributes passed in arg (as list)"""
@@ -74,11 +78,11 @@ class GTFRecord:
 
 
 class GTFRecordWithChildren(GTFRecord):
-    def __init__(self, line):
+    def __init__(self, line: str) -> None:
         super().__init__(line)
         self.children = []
 
-    def add_child(self, child, check_position=False):
+    def add_child(self, child: GTFRecord, check_position: bool = False) -> None:
         if check_position:
             if child.start < self.start:
                 self.start = child.start
@@ -86,7 +90,7 @@ class GTFRecordWithChildren(GTFRecord):
                 self.end = child.end
         self.children.append(child)
 
-    def format_to_gtf(self):
+    def format_to_gtf(self) -> str:
         gtf_seq = str(self) + "\n"
         for child in self.children:
             if isinstance(child, GTFRecordWithChildren):
@@ -96,27 +100,8 @@ class GTFRecordWithChildren(GTFRecord):
         return gtf_seq.rstrip()
 
 
-class Gene(GTFRecordWithChildren):
-    def __init__(self, line, check_attributes=False):
-        super().__init__(line)
-        self.feature = "gene"
-        if check_attributes:
-            to_filter = [
-                att for att in self.attributes if ("exon" in att or "transcript" in att)
-            ]
-            self.remove_attributes(to_filter)
-
-    @property
-    def transcripts(self):
-        return self.children
-
-    @property
-    def exons(self):
-        return [exon for transcript in self.transcripts for exon in transcript.exons]
-
-
 class Transcript(GTFRecordWithChildren):
-    def __init__(self, line, check_attributes=False):
+    def __init__(self, line: str, check_attributes=False):
         super().__init__(line)
         self.feature = "transcript"
         if check_attributes:
@@ -124,54 +109,72 @@ class Transcript(GTFRecordWithChildren):
             self.remove_attributes(to_filter)
 
     @property
-    def exons(self):
+    def exons(self) -> List[GTFRecord]:
+        return [child for child in self.children if child.feature == "exon"]
+
+
+class Gene(GTFRecordWithChildren):
+    def __init__(self, line, check_attributes=False):
+        super().__init__(line)
+        self.feature = "gene"
+        if check_attributes:
+            to_filter = [att for att in self.attributes if ("exon" in att or "transcript" in att)]
+            self.remove_attributes(to_filter)
+
+    @property
+    def transcripts(self) -> List[Transcript]:
         return self.children
+
+    @property
+    def exons(self) -> List[GTFRecord]:
+        return [exon for transcript in self.transcripts for exon in transcript.exons]
 
 
 class GTF:
     @staticmethod
-    def parse(fd, feature=None, by_line=False):
-        if by_line:
-            out = []
-            for line in fd:
-                if line.startswith("#"):
-                    continue
-                record = GTFRecord(line)
-                if record.feature == feature or feature is None:
-                    out.append(record)
-            return out
-        else:
-            genes = {}
-            transcripts = {}
-            other = []
-
-            for line in fd:
-                if line.startswith("#"):
-                    continue
-
-                record = GTFRecord(line)
-                if record.feature == "gene" and record["gene_id"] not in genes:
-                    genes[record["gene_id"]] = Gene(line)
-                elif record.feature == "transcript":
-                    transcripts[record["transcript_id"]] = Transcript(line)
-                elif record.feature == "exon":
-                    other.append(record)
-
-            for child in other:
-                transcripts[child["transcript_id"]].add_child(child)
-
-            for transcript in transcripts.values():
-                genes[transcript["gene_id"]].add_child(transcript)
-
-            return genes
+    def parse_by_line(fd, feature=None) -> Generator[GTFRecord, None, None]:
+        for line in fd:
+            if line.startswith("#"):
+                continue
+            record = GTFRecord(line)
+            if record.feature == feature or feature is None:
+                yield record
 
     @staticmethod
-    def reconstruct_full_gtf(file):
+    def parse(fd) -> Dict[str, Gene]:
+        genes = {}
+        transcripts = {}
+        other = []
+
+        for line in fd:
+            if line.startswith("#"):
+                continue
+
+            splitted_l = line.split("\t")
+            if splitted_l[2] == "gene":
+                gene = Gene(line)
+                genes[gene["gene_id"]] = gene
+            elif splitted_l[2] == "transcript":
+                tx = Transcript(line)
+                transcripts[tx["transcript_id"]] = tx
+            else:
+                other.append(GTFRecord(line))
+
+        for child in other:
+            transcripts[child["transcript_id"]].add_child(child)
+
+        for transcript in transcripts.values():
+            genes[transcript["gene_id"]].add_child(transcript)
+
+        return genes
+
+    @staticmethod
+    def reconstruct_full_gtf(file) -> Generator[Gene, None, None]:
         genes = {}
         transcripts = {}
 
         # Have to do 2 loops if exons not sorted
-        for record in GTF.parse(file, by_line=True):
+        for record in GTF.parse_by_line(file):
             if record["gene_id"] not in genes:
                 gene = Gene(str(record), check_attributes=True)
                 genes[record["gene_id"]] = gene
@@ -189,11 +192,11 @@ class GTF:
             yield gene
 
     @staticmethod
-    def stats(file):
+    def stats(file) -> Tuple[int, int, int]:
         exons = 0
         transcripts = set()
         genes = set()
-        for exon in GTF.parse(file, feature="exon", by_line=True):
+        for exon in GTF.parse_by_line(file, feature="exon"):
             exons += 1
             genes.add(exon["gene_id"])
             transcripts.add(exon["transcript_id"])
@@ -224,9 +227,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.input_file is None:
-        print(
-            "\033[91mPlease specify your GTF file or use stdin... See below for usage:\n\x1b[0m"
-        )
+        print("\033[91mPlease specify your GTF file or use stdin... See below for usage:\n\x1b[0m")
 
         sys.exit(parser.print_help())
 
